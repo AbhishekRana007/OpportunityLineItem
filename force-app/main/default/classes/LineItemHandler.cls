@@ -1,27 +1,29 @@
-public with sharing class LineItemHandler implements ITrigger,database.stateful{
-    map<id, AggregateResult> LineItemOldData = new map<id, AggregateResult>();
+public with sharing class LineItemHandler implements ITrigger, database.stateful{
+    map<id, Decimal> LineItemOldData = new map<id, Decimal>();
     map<id, Decimal> DeletedData = new map<id, Decimal>();
     public void bulkBefore(){
 
-        /*if (Trigger.isDelete){
-
-
+        if (Trigger.isDelete){
             Set<id> Ids = new Set<id>();
             list<OpportunityLineItem> LineItems = trigger.old;
+            //  System.debug(LineItems);
             for (OpportunityLineItem oo : LineItems){
-                Ids.add(oo.OpportunityId);
+                if (oo.OpportunityId != null){
+                    Ids.add(oo.OpportunityId);
+                }
             }
-            List<AggregateResult> opportunitiesAscending = [SELECT max(serial_no__c)counter, OpportunityId
+            List<AggregateResult> opportunitiesAscending = [SELECT max(serial_no__c)Max, OpportunityId
                                                             FROM OpportunityLineItem
                                                             where OpportunityId in:Ids
                                                             group by OpportunityId];
             for (AggregateResult Aggri : opportunitiesAscending){
-                DeletedData.put((id) Aggri.get('OpportunityId'), (Decimal) Aggri.get('counter'));
-                system.debug(DeletedData + ' ' + 'is the datat');
+                if (Aggri != null){
+                    DeletedData.put((id) Aggri.get('OpportunityId'), (Decimal) Aggri.get('Max'));
+                }
+
             }
 
-            LineItemHelper.deleteer(DeletedData);
-        }*/
+        }
         if (trigger.isInsert){
 
             Set<id> Ids = new Set<id>();
@@ -34,7 +36,7 @@ public with sharing class LineItemHandler implements ITrigger,database.stateful{
                                                             where OpportunityId in:Ids
                                                             group by OpportunityId];
             for (AggregateResult Aggri : opportunitiesAscending){
-                LineItemOldData.put((id) Aggri.get('OpportunityId'), Aggri);
+                LineItemOldData.put((id) Aggri.get('OpportunityId'), (Decimal) Aggri.get('counter'));
             }
 
             LineItemHelper.LineItemMatcher(trigger.new, LineItemOldData);
@@ -56,6 +58,12 @@ public with sharing class LineItemHandler implements ITrigger,database.stateful{
     }
 
     public void beforeDelete(SObject so){
+
+        OpportunityLineItem One = (OpportunityLineItem)so;
+        system.debug('its in before Delete');
+        if (DeletedData.containsKey(One.OpportunityId) && (Decimal) DeletedData.get(One.OpportunityId) == One.Serial_No__c){
+            One.addError('Cannot Delete this Product');
+        }
         system.debug('--- beforeDelete is  called Agriculture');
     }
 
